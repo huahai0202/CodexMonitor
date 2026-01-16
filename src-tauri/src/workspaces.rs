@@ -13,12 +13,19 @@ use crate::types::{
 };
 use crate::utils::normalize_git_path;
 
-fn resolve_codex_home(entry: &WorkspaceEntry, app: &AppHandle) -> Option<PathBuf> {
+fn resolve_codex_home(entry: &WorkspaceEntry, parent_path: Option<&str>) -> Option<PathBuf> {
+    if entry.kind.is_worktree() {
+        if let Some(parent_path) = parent_path {
+            let legacy_home = PathBuf::from(parent_path).join(".codexmonitor");
+            if legacy_home.is_dir() {
+                return Some(legacy_home);
+            }
+        }
+    }
     let legacy_home = PathBuf::from(&entry.path).join(".codexmonitor");
     if legacy_home.is_dir() {
         return Some(legacy_home);
     }
-    let _ = app;
     None
 }
 
@@ -199,7 +206,7 @@ pub(crate) async fn add_workspace(
         let settings = state.app_settings.lock().await;
         settings.codex_bin.clone()
     };
-    let codex_home = resolve_codex_home(&entry, &app);
+    let codex_home = resolve_codex_home(&entry, None);
     let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
     {
         let mut workspaces = state.workspaces.lock().await;
@@ -295,7 +302,7 @@ pub(crate) async fn add_worktree(
         let settings = state.app_settings.lock().await;
         settings.codex_bin.clone()
     };
-    let codex_home = resolve_codex_home(&entry, &app);
+    let codex_home = resolve_codex_home(&entry, Some(&parent_entry.path));
     let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
     {
         let mut workspaces = state.workspaces.lock().await;
@@ -504,11 +511,19 @@ pub(crate) async fn connect_workspace(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    let entry = {
+    let (entry, parent_path) = {
         let workspaces = state.workspaces.lock().await;
         workspaces
             .get(&id)
             .cloned()
+            .map(|entry| {
+                let parent_path = entry
+                    .parent_id
+                    .as_ref()
+                    .and_then(|parent_id| workspaces.get(parent_id))
+                    .map(|parent| parent.path.clone());
+                (entry, parent_path)
+            })
             .ok_or("workspace not found")?
     };
 
@@ -516,7 +531,7 @@ pub(crate) async fn connect_workspace(
         let settings = state.app_settings.lock().await;
         settings.codex_bin.clone()
     };
-    let codex_home = resolve_codex_home(&entry, &app);
+    let codex_home = resolve_codex_home(&entry, parent_path.as_deref());
     let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
     state.sessions.lock().await.insert(entry.id, session);
     Ok(())
