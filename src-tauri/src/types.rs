@@ -185,6 +185,21 @@ pub(crate) struct AppSettings {
     pub(crate) remote_backend_token: Option<String>,
     #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
     pub(crate) default_access_mode: String,
+    #[serde(
+        default = "default_composer_model_shortcut",
+        rename = "composerModelShortcut"
+    )]
+    pub(crate) composer_model_shortcut: Option<String>,
+    #[serde(
+        default = "default_composer_access_shortcut",
+        rename = "composerAccessShortcut"
+    )]
+    pub(crate) composer_access_shortcut: Option<String>,
+    #[serde(
+        default = "default_composer_reasoning_shortcut",
+        rename = "composerReasoningShortcut"
+    )]
+    pub(crate) composer_reasoning_shortcut: Option<String>,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     pub(crate) ui_scale: f64,
     #[serde(
@@ -250,6 +265,18 @@ fn default_ui_scale() -> f64 {
     1.0
 }
 
+fn default_composer_model_shortcut() -> Option<String> {
+    Some("cmd+shift+m".to_string())
+}
+
+fn default_composer_access_shortcut() -> Option<String> {
+    Some("cmd+shift+a".to_string())
+}
+
+fn default_composer_reasoning_shortcut() -> Option<String> {
+    Some("cmd+shift+r".to_string())
+}
+
 fn default_notification_sounds_enabled() -> bool {
     true
 }
@@ -290,6 +317,9 @@ impl Default for AppSettings {
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
             default_access_mode: "current".to_string(),
+            composer_model_shortcut: default_composer_model_shortcut(),
+            composer_access_shortcut: default_composer_access_shortcut(),
+            composer_reasoning_shortcut: default_composer_reasoning_shortcut(),
             ui_scale: 1.0,
             notification_sounds_enabled: true,
             experimental_collab_enabled: false,
@@ -316,6 +346,18 @@ mod tests {
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
         assert_eq!(settings.default_access_mode, "current");
+        assert_eq!(
+            settings.composer_model_shortcut.as_deref(),
+            Some("cmd+shift+m")
+        );
+        assert_eq!(
+            settings.composer_access_shortcut.as_deref(),
+            Some("cmd+shift+a")
+        );
+        assert_eq!(
+            settings.composer_reasoning_shortcut.as_deref(),
+            Some("cmd+shift+r")
+        );
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert!(settings.notification_sounds_enabled);
         assert!(!settings.experimental_steer_enabled);

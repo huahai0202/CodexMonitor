@@ -63,6 +63,7 @@ import {
 import { useAppSettings } from "./features/settings/hooks/useAppSettings";
 import { useUpdater } from "./features/update/hooks/useUpdater";
 import { useComposerImages } from "./features/composer/hooks/useComposerImages";
+import { useComposerShortcuts } from "./features/composer/hooks/useComposerShortcuts";
 import { useDictationModel } from "./features/dictation/hooks/useDictationModel";
 import { useDictation } from "./features/dictation/hooks/useDictation";
 import { useHoldToDictate } from "./features/dictation/hooks/useHoldToDictate";
@@ -175,7 +176,13 @@ function MainApp() {
   const [composerInsert, setComposerInsert] = useState<QueuedMessage | null>(
     null
   );
-  type SettingsSection = "projects" | "display" | "dictation" | "codex" | "experimental";
+  type SettingsSection =
+    | "projects"
+    | "display"
+    | "dictation"
+    | "shortcuts"
+    | "codex"
+    | "experimental";
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(
     null,
@@ -365,6 +372,21 @@ function MainApp() {
     selectedEffort,
     setSelectedEffort
   } = useModels({ activeWorkspace, onDebug: addDebugEntry });
+
+  useComposerShortcuts({
+    textareaRef: composerInputRef,
+    modelShortcut: appSettings.composerModelShortcut,
+    accessShortcut: appSettings.composerAccessShortcut,
+    reasoningShortcut: appSettings.composerReasoningShortcut,
+    models,
+    selectedModelId,
+    onSelectModel: setSelectedModelId,
+    accessMode,
+    onSelectAccessMode: setAccessMode,
+    reasoningOptions,
+    selectedEffort,
+    onSelectEffort: setSelectedEffort,
+  });
   const {
     collaborationModes,
     selectedCollaborationMode,
