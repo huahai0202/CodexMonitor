@@ -509,13 +509,6 @@ export function MainHeader({
         </div>
       </div>
       <div className="main-header-actions">
-        <OpenAppMenu
-          path={resolvedWorktreePath}
-          openTargets={openTargets}
-          selectedOpenAppId={selectedOpenAppId}
-          onSelectOpenAppId={onSelectOpenAppId}
-          iconById={openAppIconById}
-        />
         {onRunLaunchScript &&
           onOpenLaunchScriptEditor &&
           onCloseLaunchScriptEditor &&
@@ -534,6 +527,13 @@ export function MainHeader({
               onSave={onSaveLaunchScript}
             />
           )}
+        <OpenAppMenu
+          path={resolvedWorktreePath}
+          openTargets={openTargets}
+          selectedOpenAppId={selectedOpenAppId}
+          onSelectOpenAppId={onSelectOpenAppId}
+          iconById={openAppIconById}
+        />
         {showTerminalButton && (
           <button
             type="button"

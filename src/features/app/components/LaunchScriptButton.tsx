@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import Play from "lucide-react/dist/esm/icons/play";
-import Pencil from "lucide-react/dist/esm/icons/pencil";
 
 type LaunchScriptButtonProps = {
   launchScript: string | null;
@@ -28,6 +27,7 @@ export function LaunchScriptButton({
   onSave,
 }: LaunchScriptButtonProps) {
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const hasLaunchScript = Boolean(launchScript?.trim());
 
   useEffect(() => {
     if (!editorOpen) {
@@ -53,21 +53,15 @@ export function LaunchScriptButton({
           type="button"
           className="ghost main-header-action launch-script-run"
           onClick={onRun}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            onOpenEditor();
+          }}
           data-tauri-drag-region="false"
-          aria-label={launchScript ? "Run launch script" : "Set launch script"}
-          title={launchScript ? "Run launch script" : "Set launch script"}
+          aria-label={hasLaunchScript ? "Run launch script" : "Set launch script"}
+          title={hasLaunchScript ? "Run launch script" : "Set launch script"}
         >
           <Play size={14} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="ghost main-header-action launch-script-edit"
-          onClick={editorOpen ? onCloseEditor : onOpenEditor}
-          data-tauri-drag-region="false"
-          aria-label="Edit launch script"
-          title="Edit launch script"
-        >
-          <Pencil size={14} aria-hidden />
         </button>
       </div>
       {editorOpen && (
@@ -81,9 +75,6 @@ export function LaunchScriptButton({
             rows={6}
             data-tauri-drag-region="false"
           />
-          <div className="launch-script-help">
-            Runs in a dedicated terminal tab for this workspace.
-          </div>
           {error && <div className="launch-script-error">{error}</div>}
           <div className="launch-script-actions">
             <button

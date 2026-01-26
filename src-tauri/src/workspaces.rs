@@ -1798,6 +1798,7 @@ mod tests {
                 sort_order,
                 group_id: None,
                 git_root: None,
+                launch_script: None,
             },
         }
     }

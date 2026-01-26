@@ -61,10 +61,12 @@ export function useTerminalSession({
   const [status, setStatus] = useState<TerminalStatus>("idle");
   const [message, setMessage] = useState("Open a terminal to start a session.");
   const [hasSession, setHasSession] = useState(false);
+  const [sessionResetCounter, setSessionResetCounter] = useState(0);
   const cleanupTerminalSession = useCallback((workspaceId: string, terminalId: string) => {
     const key = `${workspaceId}:${terminalId}`;
     outputBuffersRef.current.delete(key);
     openedSessionsRef.current.delete(key);
+    setSessionResetCounter((prev) => prev + 1);
     if (activeKeyRef.current === key) {
       terminalRef.current?.reset();
       setHasSession(false);
@@ -256,6 +258,7 @@ export function useTerminalSession({
     onDebug,
     refreshTerminal,
     syncActiveBuffer,
+    sessionResetCounter,
   ]);
 
   useEffect(() => {
