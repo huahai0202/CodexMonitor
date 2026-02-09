@@ -153,6 +153,7 @@ export type AppSettings = {
   orbitAuthUrl: string | null;
   orbitRunnerName: string | null;
   orbitAutoStartRunner: boolean;
+  keepDaemonRunningAfterAppClose: boolean;
   orbitUseAccess: boolean;
   orbitAccessClientId: string | null;
   orbitAccessClientSecretRef: string | null;
@@ -298,6 +299,19 @@ export type CodexDoctorResult = {
   nodeOk: boolean;
   nodeVersion: string | null;
   nodeDetails: string | null;
+};
+
+export type CodexUpdateMethod = "brew_formula" | "brew_cask" | "npm" | "unknown";
+
+export type CodexUpdateResult = {
+  ok: boolean;
+  method: CodexUpdateMethod;
+  package: string | null;
+  beforeVersion: string | null;
+  afterVersion: string | null;
+  upgraded: boolean;
+  output: string | null;
+  details: string | null;
 };
 
 export type ApprovalRequest = {
