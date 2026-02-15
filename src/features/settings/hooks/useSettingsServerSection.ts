@@ -15,24 +15,12 @@ import {
   tailscaleStatus as fetchTailscaleStatus,
 } from "@services/tauri";
 import { isMobilePlatform } from "@utils/platformPaths";
-import type { OrbitServiceClient } from "@settings/components/settingsTypes";
-import {
-  DEFAULT_REMOTE_HOST,
-  ORBIT_DEFAULT_POLL_INTERVAL_SECONDS,
-  ORBIT_MAX_INLINE_POLL_SECONDS,
-} from "@settings/components/settingsViewConstants";
-import {
-  delay,
-  getOrbitStatusText,
-  normalizeOverrideValue,
-  type OrbitActionResult,
-} from "@settings/components/settingsViewHelpers";
+import { DEFAULT_REMOTE_HOST } from "@settings/components/settingsViewConstants";
 
 type UseSettingsServerSectionArgs = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onMobileConnectSuccess?: () => Promise<void> | void;
-  orbitServiceClient: OrbitServiceClient;
 };
 
 export type SettingsServerSectionProps = {
@@ -51,15 +39,6 @@ export type SettingsServerSectionProps = {
   remoteNameDraft: string;
   remoteHostDraft: string;
   remoteTokenDraft: string;
-  orbitWsUrlDraft: string;
-  orbitAuthUrlDraft: string;
-  orbitRunnerNameDraft: string;
-  orbitAccessClientIdDraft: string;
-  orbitAccessClientSecretRefDraft: string;
-  orbitStatusText: string | null;
-  orbitAuthCode: string | null;
-  orbitVerificationUrl: string | null;
-  orbitBusyAction: string | null;
   tailscaleStatus: TailscaleStatus | null;
   tailscaleStatusBusy: boolean;
   tailscaleStatusError: string | null;
@@ -71,11 +50,6 @@ export type SettingsServerSectionProps = {
   onSetRemoteNameDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteHostDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteTokenDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitWsUrlDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitAuthUrlDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitRunnerNameDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitAccessClientIdDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitAccessClientSecretRefDraft: Dispatch<SetStateAction<string>>;
   onCommitRemoteName: () => Promise<void>;
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
@@ -83,24 +57,12 @@ export type SettingsServerSectionProps = {
   onAddRemoteBackend: () => Promise<void>;
   onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
   onDeleteRemoteBackend: (id: string) => Promise<void>;
-  onChangeRemoteProvider: (provider: AppSettings["remoteBackendProvider"]) => Promise<void>;
   onRefreshTailscaleStatus: () => void;
   onRefreshTailscaleCommandPreview: () => void;
   onUseSuggestedTailscaleHost: () => Promise<void>;
   onTcpDaemonStart: () => Promise<void>;
   onTcpDaemonStop: () => Promise<void>;
   onTcpDaemonStatus: () => Promise<void>;
-  onCommitOrbitWsUrl: () => Promise<void>;
-  onCommitOrbitAuthUrl: () => Promise<void>;
-  onCommitOrbitRunnerName: () => Promise<void>;
-  onCommitOrbitAccessClientId: () => Promise<void>;
-  onCommitOrbitAccessClientSecretRef: () => Promise<void>;
-  onOrbitConnectTest: () => void;
-  onOrbitSignIn: () => void;
-  onOrbitSignOut: () => void;
-  onOrbitRunnerStart: () => void;
-  onOrbitRunnerStop: () => void;
-  onOrbitRunnerStatus: () => void;
   onMobileConnectTest: () => void;
 };
 
@@ -128,10 +90,9 @@ const createRemoteBackendId = () =>
 const buildFallbackRemoteBackend = (settings: AppSettings): RemoteBackendTarget => ({
   id: settings.activeRemoteBackendId ?? "remote-default",
   name: "Primary remote",
-  provider: settings.remoteBackendProvider,
+  provider: "tcp",
   host: settings.remoteBackendHost,
   token: settings.remoteBackendToken,
-  orbitWsUrl: settings.orbitWsUrl,
   lastConnectedAtMs: null,
 });
 
@@ -178,28 +139,15 @@ export const useSettingsServerSection = ({
   appSettings,
   onUpdateAppSettings,
   onMobileConnectSuccess,
-  orbitServiceClient,
 }: UseSettingsServerSectionArgs): SettingsServerSectionProps => {
   const initialActiveRemoteBackend = getActiveRemoteBackend(appSettings);
   const [remoteNameDraft, setRemoteNameDraft] = useState(initialActiveRemoteBackend.name);
   const [remoteHostDraft, setRemoteHostDraft] = useState(initialActiveRemoteBackend.host);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(initialActiveRemoteBackend.token ?? "");
-  const [orbitWsUrlDraft, setOrbitWsUrlDraft] = useState(initialActiveRemoteBackend.orbitWsUrl ?? "");
   const [remoteStatusText, setRemoteStatusText] = useState<string | null>(null);
   const [remoteStatusError, setRemoteStatusError] = useState(false);
   const [remoteNameError, setRemoteNameError] = useState<string | null>(null);
   const [remoteHostError, setRemoteHostError] = useState<string | null>(null);
-  const [orbitAuthUrlDraft, setOrbitAuthUrlDraft] = useState(appSettings.orbitAuthUrl ?? "");
-  const [orbitRunnerNameDraft, setOrbitRunnerNameDraft] = useState(appSettings.orbitRunnerName ?? "");
-  const [orbitAccessClientIdDraft, setOrbitAccessClientIdDraft] = useState(
-    appSettings.orbitAccessClientId ?? "",
-  );
-  const [orbitAccessClientSecretRefDraft, setOrbitAccessClientSecretRefDraft] =
-    useState(appSettings.orbitAccessClientSecretRef ?? "");
-  const [orbitStatusText, setOrbitStatusText] = useState<string | null>(null);
-  const [orbitAuthCode, setOrbitAuthCode] = useState<string | null>(null);
-  const [orbitVerificationUrl, setOrbitVerificationUrl] = useState<string | null>(null);
-  const [orbitBusyAction, setOrbitBusyAction] = useState<string | null>(null);
   const [tailscaleStatus, setTailscaleStatus] = useState<TailscaleStatus | null>(null);
   const [tailscaleStatusBusy, setTailscaleStatusBusy] = useState(false);
   const [tailscaleStatusError, setTailscaleStatusError] = useState<string | null>(null);
@@ -232,26 +180,9 @@ export const useSettingsServerSection = ({
     setRemoteNameDraft(activeRemoteBackend.name);
     setRemoteHostDraft(activeRemoteBackend.host);
     setRemoteTokenDraft(activeRemoteBackend.token ?? "");
-    setOrbitWsUrlDraft(activeRemoteBackend.orbitWsUrl ?? "");
     setRemoteNameError(null);
     setRemoteHostError(null);
   }, [activeRemoteBackend]);
-
-  useEffect(() => {
-    setOrbitAuthUrlDraft(appSettings.orbitAuthUrl ?? "");
-  }, [appSettings.orbitAuthUrl]);
-
-  useEffect(() => {
-    setOrbitRunnerNameDraft(appSettings.orbitRunnerName ?? "");
-  }, [appSettings.orbitRunnerName]);
-
-  useEffect(() => {
-    setOrbitAccessClientIdDraft(appSettings.orbitAccessClientId ?? "");
-  }, [appSettings.orbitAccessClientId]);
-
-  useEffect(() => {
-    setOrbitAccessClientSecretRefDraft(appSettings.orbitAccessClientSecretRef ?? "");
-  }, [appSettings.orbitAccessClientSecretRef]);
 
   const normalizeRemoteBackendEntry = (
     entry: RemoteBackendTarget,
@@ -259,10 +190,9 @@ export const useSettingsServerSection = ({
   ): RemoteBackendTarget => ({
     id: entry.id?.trim() || `remote-${index + 1}`,
     name: entry.name?.trim() || `Remote ${index + 1}`,
-    provider: entry.provider === "orbit" ? "orbit" : "tcp",
+    provider: "tcp",
     host: entry.host?.trim() || DEFAULT_REMOTE_HOST,
     token: entry.token?.trim() ? entry.token.trim() : null,
-    orbitWsUrl: entry.orbitWsUrl?.trim() ? entry.orbitWsUrl.trim() : null,
     lastConnectedAtMs:
       typeof entry.lastConnectedAtMs === "number" && Number.isFinite(entry.lastConnectedAtMs)
         ? entry.lastConnectedAtMs
@@ -286,10 +216,9 @@ export const useSettingsServerSection = ({
         ...latestSettings,
         remoteBackends: normalizedBackends,
         activeRemoteBackendId: active.id,
-        remoteBackendProvider: active.provider,
+        remoteBackendProvider: "tcp",
         remoteBackendHost: active.host,
         remoteBackendToken: active.token,
-        orbitWsUrl: active.orbitWsUrl,
         ...(mobilePlatform
           ? {
               backendMode: "remote",
@@ -311,7 +240,6 @@ export const useSettingsServerSection = ({
       const unchanged =
         nextSettings.remoteBackendHost === latestSettings.remoteBackendHost &&
         nextSettings.remoteBackendToken === latestSettings.remoteBackendToken &&
-        nextSettings.orbitWsUrl === latestSettings.orbitWsUrl &&
         nextSettings.backendMode === latestSettings.backendMode &&
         nextSettings.remoteBackendProvider === latestSettings.remoteBackendProvider &&
         nextSettings.activeRemoteBackendId === latestSettings.activeRemoteBackendId &&
@@ -335,6 +263,7 @@ export const useSettingsServerSection = ({
       nextBackends[safeIndex] = {
         ...nextBackends[safeIndex],
         ...patch,
+        provider: "tcp",
       };
       await persistRemoteBackends(nextBackends, nextBackends[safeIndex].id);
     },
@@ -342,15 +271,12 @@ export const useSettingsServerSection = ({
   );
 
   const applyRemoteHost = async (rawValue: string) => {
-    const active = getActiveRemoteBackend(latestSettingsRef.current);
     const nextHost = rawValue.trim();
-    if (active.provider === "tcp") {
-      const validationError = validateRemoteHost(nextHost);
-      if (validationError) {
-        setRemoteHostError(validationError);
-        setRemoteStatus(validationError, true);
-        return false;
-      }
+    const validationError = validateRemoteHost(nextHost);
+    if (validationError) {
+      setRemoteHostError(validationError);
+      setRemoteStatus(validationError, true);
+      return false;
     }
     const normalizedHost = nextHost || DEFAULT_REMOTE_HOST;
     setRemoteHostError(null);
@@ -414,10 +340,9 @@ export const useSettingsServerSection = ({
     const nextRemote: RemoteBackendTarget = {
       id: nextId,
       name: buildNextRemoteName(existingBackends),
-      provider: latestSettings.remoteBackendProvider,
+      provider: "tcp",
       host: DEFAULT_REMOTE_HOST,
       token: null,
-      orbitWsUrl: null,
       lastConnectedAtMs: null,
     };
     await persistRemoteBackends([...existingBackends, nextRemote], nextId);
@@ -477,8 +402,6 @@ export const useSettingsServerSection = ({
 
   const handleMobileConnectTest = () => {
     void (async () => {
-      const active = getActiveRemoteBackend(latestSettingsRef.current);
-      const provider = active.provider;
       const nextToken = remoteTokenDraft.trim() ? remoteTokenDraft.trim() : null;
       setRemoteTokenDraft(nextToken ?? "");
 
@@ -488,38 +411,25 @@ export const useSettingsServerSection = ({
         return;
       }
 
-      if (provider === "tcp") {
-        const hostError = validateRemoteHost(remoteHostDraft);
-        if (hostError) {
-          setRemoteHostError(hostError);
-          setMobileConnectStatusError(true);
-          setMobileConnectStatusText(hostError);
-          return;
-        }
+      const hostError = validateRemoteHost(remoteHostDraft);
+      if (hostError) {
+        setRemoteHostError(hostError);
+        setMobileConnectStatusError(true);
+        setMobileConnectStatusText(hostError);
+        return;
       }
 
       setMobileConnectBusy(true);
       setMobileConnectStatusText(null);
       setMobileConnectStatusError(false);
       try {
-        if (provider === "tcp") {
-          const nextHost = remoteHostDraft.trim() || DEFAULT_REMOTE_HOST;
-          setRemoteHostDraft(nextHost);
-          await updateActiveRemoteBackend({
-            host: nextHost,
-            token: nextToken,
-          });
-        } else {
-          const nextOrbitWsUrl = normalizeOverrideValue(orbitWsUrlDraft);
-          setOrbitWsUrlDraft(nextOrbitWsUrl ?? "");
-          if (!nextOrbitWsUrl) {
-            throw new Error("Orbit websocket URL is required.");
-          }
-          await updateActiveRemoteBackend({
-            token: nextToken,
-            orbitWsUrl: nextOrbitWsUrl,
-          });
-        }
+        const nextHost = remoteHostDraft.trim() || DEFAULT_REMOTE_HOST;
+        setRemoteHostDraft(nextHost);
+        await updateActiveRemoteBackend({
+          host: nextHost,
+          token: nextToken,
+        });
+
         const workspaces = await listWorkspaces();
         const workspaceCount = workspaces.length;
         const workspaceWord = workspaceCount === 1 ? "workspace" : "workspaces";
@@ -549,25 +459,7 @@ export const useSettingsServerSection = ({
     }
     setMobileConnectStatusText(null);
     setMobileConnectStatusError(false);
-  }, [
-    appSettings.remoteBackendProvider,
-    mobilePlatform,
-    orbitWsUrlDraft,
-    remoteHostDraft,
-    remoteTokenDraft,
-  ]);
-
-  const handleChangeRemoteProvider = async (
-    provider: AppSettings["remoteBackendProvider"],
-  ) => {
-    if (provider === getActiveRemoteBackend(latestSettingsRef.current).provider) {
-      return;
-    }
-    await updateActiveRemoteBackend({
-      provider,
-    });
-    setRemoteStatus(`Connection type set to ${provider.toUpperCase()}.`);
-  };
+  }, [mobilePlatform, remoteHostDraft, remoteTokenDraft]);
 
   const handleRefreshTailscaleStatus = useCallback(() => {
     void (async () => {
@@ -653,216 +545,7 @@ export const useSettingsServerSection = ({
     await runTcpDaemonAction("status", tailscaleDaemonStatus);
   }, [runTcpDaemonAction]);
 
-  const handleCommitOrbitWsUrl = async () => {
-    const nextValue = normalizeOverrideValue(orbitWsUrlDraft);
-    setOrbitWsUrlDraft(nextValue ?? "");
-    await updateActiveRemoteBackend({
-      orbitWsUrl: nextValue,
-    });
-    setRemoteStatus("Orbit websocket URL saved.");
-  };
-
-  const handleCommitOrbitAuthUrl = async () => {
-    const nextValue = normalizeOverrideValue(orbitAuthUrlDraft);
-    setOrbitAuthUrlDraft(nextValue ?? "");
-    if (nextValue === appSettings.orbitAuthUrl) {
-      return;
-    }
-    await onUpdateAppSettings({
-      ...appSettings,
-      orbitAuthUrl: nextValue,
-    });
-  };
-
-  const handleCommitOrbitRunnerName = async () => {
-    const nextValue = normalizeOverrideValue(orbitRunnerNameDraft);
-    setOrbitRunnerNameDraft(nextValue ?? "");
-    if (nextValue === appSettings.orbitRunnerName) {
-      return;
-    }
-    await onUpdateAppSettings({
-      ...appSettings,
-      orbitRunnerName: nextValue,
-    });
-  };
-
-  const handleCommitOrbitAccessClientId = async () => {
-    const nextValue = normalizeOverrideValue(orbitAccessClientIdDraft);
-    setOrbitAccessClientIdDraft(nextValue ?? "");
-    if (nextValue === appSettings.orbitAccessClientId) {
-      return;
-    }
-    await onUpdateAppSettings({
-      ...appSettings,
-      orbitAccessClientId: nextValue,
-    });
-  };
-
-  const handleCommitOrbitAccessClientSecretRef = async () => {
-    const nextValue = normalizeOverrideValue(orbitAccessClientSecretRefDraft);
-    setOrbitAccessClientSecretRefDraft(nextValue ?? "");
-    if (nextValue === appSettings.orbitAccessClientSecretRef) {
-      return;
-    }
-    await onUpdateAppSettings({
-      ...appSettings,
-      orbitAccessClientSecretRef: nextValue,
-    });
-  };
-
-  const runOrbitAction = async <T extends OrbitActionResult>(
-    actionKey: string,
-    actionLabel: string,
-    action: () => Promise<T>,
-    successFallback: string,
-  ): Promise<T | null> => {
-    setOrbitBusyAction(actionKey);
-    setOrbitStatusText(`${actionLabel}...`);
-    try {
-      const result = await action();
-      setOrbitStatusText(getOrbitStatusText(result, successFallback));
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown Orbit error";
-      setOrbitStatusText(`${actionLabel} failed: ${message}`);
-      return null;
-    } finally {
-      setOrbitBusyAction(null);
-    }
-  };
-
-  const syncRemoteBackendToken = async (nextToken: string | null) => {
-    const normalizedToken = nextToken?.trim() ? nextToken.trim() : null;
-    setRemoteTokenDraft(normalizedToken ?? "");
-    await updateActiveRemoteBackend({ token: normalizedToken });
-  };
-
-  const handleOrbitConnectTest = () => {
-    void runOrbitAction(
-      "connect-test",
-      "Connect test",
-      orbitServiceClient.orbitConnectTest,
-      "Orbit connection test succeeded.",
-    );
-  };
-
-  const handleOrbitSignIn = () => {
-    void (async () => {
-      setOrbitBusyAction("sign-in");
-      setOrbitStatusText("Starting Orbit sign in...");
-      setOrbitAuthCode(null);
-      setOrbitVerificationUrl(null);
-      try {
-        const tokenTargetRemoteId = latestSettingsRef.current.activeRemoteBackendId ?? undefined;
-        const startResult = await orbitServiceClient.orbitSignInStart();
-        setOrbitAuthCode(startResult.userCode ?? startResult.deviceCode);
-        setOrbitVerificationUrl(
-          startResult.verificationUriComplete ?? startResult.verificationUri,
-        );
-        setOrbitStatusText(
-          "Orbit sign in started. Finish authorization in the browser window, then keep this dialog open while we poll for completion.",
-        );
-
-        const maxPollWindowSeconds = Math.max(
-          1,
-          Math.min(startResult.expiresInSeconds, ORBIT_MAX_INLINE_POLL_SECONDS),
-        );
-        const deadlineMs = Date.now() + maxPollWindowSeconds * 1000;
-        let pollIntervalSeconds = Math.max(
-          1,
-          startResult.intervalSeconds || ORBIT_DEFAULT_POLL_INTERVAL_SECONDS,
-        );
-
-        while (Date.now() < deadlineMs) {
-          await delay(pollIntervalSeconds * 1000);
-          const pollResult = await orbitServiceClient.orbitSignInPoll(
-            startResult.deviceCode,
-            tokenTargetRemoteId,
-          );
-          setOrbitStatusText(
-            getOrbitStatusText(pollResult, "Orbit sign in status refreshed."),
-          );
-
-          if (pollResult.status === "pending") {
-            if (typeof pollResult.intervalSeconds === "number") {
-              pollIntervalSeconds = Math.max(1, pollResult.intervalSeconds);
-            }
-            continue;
-          }
-
-          if (pollResult.status === "authorized") {
-            if (pollResult.token) {
-              await syncRemoteBackendToken(pollResult.token);
-            }
-          }
-          return;
-        }
-
-        setOrbitStatusText(
-          "Orbit sign in is still pending. Leave this window open and try Sign In again if authorization just completed.",
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown Orbit error";
-        setOrbitStatusText(`Sign In failed: ${message}`);
-      } finally {
-        setOrbitBusyAction(null);
-      }
-    })();
-  };
-
-  const handleOrbitSignOut = () => {
-    void (async () => {
-      const tokenTargetRemoteId = latestSettingsRef.current.activeRemoteBackendId ?? undefined;
-      const result = await runOrbitAction(
-        "sign-out",
-        "Sign Out",
-        () => orbitServiceClient.orbitSignOut(tokenTargetRemoteId),
-        "Signed out from Orbit.",
-      );
-      if (result !== null) {
-        try {
-          await syncRemoteBackendToken(null);
-          setOrbitAuthCode(null);
-          setOrbitVerificationUrl(null);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown Orbit error";
-          setOrbitStatusText(`Sign Out failed: ${message}`);
-        }
-      }
-    })();
-  };
-
-  const handleOrbitRunnerStart = () => {
-    void runOrbitAction(
-      "runner-start",
-      "Start Runner",
-      orbitServiceClient.orbitRunnerStart,
-      "Orbit runner started.",
-    );
-  };
-
-  const handleOrbitRunnerStop = () => {
-    void runOrbitAction(
-      "runner-stop",
-      "Stop Runner",
-      orbitServiceClient.orbitRunnerStop,
-      "Orbit runner stopped.",
-    );
-  };
-
-  const handleOrbitRunnerStatus = () => {
-    void runOrbitAction(
-      "runner-status",
-      "Refresh Status",
-      orbitServiceClient.orbitRunnerStatus,
-      "Orbit runner status refreshed.",
-    );
-  };
-
   useEffect(() => {
-    if (appSettings.remoteBackendProvider !== "tcp") {
-      return;
-    }
     if (!mobilePlatform) {
       handleRefreshTailscaleCommandPreview();
       void handleTcpDaemonStatus();
@@ -871,7 +554,6 @@ export const useSettingsServerSection = ({
       handleRefreshTailscaleStatus();
     }
   }, [
-    appSettings.remoteBackendProvider,
     appSettings.remoteBackendToken,
     handleRefreshTailscaleCommandPreview,
     handleRefreshTailscaleStatus,
@@ -895,15 +577,6 @@ export const useSettingsServerSection = ({
     remoteNameDraft,
     remoteHostDraft,
     remoteTokenDraft,
-    orbitWsUrlDraft,
-    orbitAuthUrlDraft,
-    orbitRunnerNameDraft,
-    orbitAccessClientIdDraft,
-    orbitAccessClientSecretRefDraft,
-    orbitStatusText,
-    orbitAuthCode,
-    orbitVerificationUrl,
-    orbitBusyAction,
     tailscaleStatus,
     tailscaleStatusBusy,
     tailscaleStatusError,
@@ -915,11 +588,6 @@ export const useSettingsServerSection = ({
     onSetRemoteNameDraft: handleSetRemoteNameDraft,
     onSetRemoteHostDraft: handleSetRemoteHostDraft,
     onSetRemoteTokenDraft: setRemoteTokenDraft,
-    onSetOrbitWsUrlDraft: setOrbitWsUrlDraft,
-    onSetOrbitAuthUrlDraft: setOrbitAuthUrlDraft,
-    onSetOrbitRunnerNameDraft: setOrbitRunnerNameDraft,
-    onSetOrbitAccessClientIdDraft: setOrbitAccessClientIdDraft,
-    onSetOrbitAccessClientSecretRefDraft: setOrbitAccessClientSecretRefDraft,
     onCommitRemoteName: handleCommitRemoteName,
     onCommitRemoteHost: handleCommitRemoteHost,
     onCommitRemoteToken: handleCommitRemoteToken,
@@ -927,24 +595,12 @@ export const useSettingsServerSection = ({
     onAddRemoteBackend: handleAddRemoteBackend,
     onMoveRemoteBackend: handleMoveRemoteBackend,
     onDeleteRemoteBackend: handleDeleteRemoteBackend,
-    onChangeRemoteProvider: handleChangeRemoteProvider,
     onRefreshTailscaleStatus: handleRefreshTailscaleStatus,
     onRefreshTailscaleCommandPreview: handleRefreshTailscaleCommandPreview,
     onUseSuggestedTailscaleHost: handleUseSuggestedTailscaleHost,
     onTcpDaemonStart: handleTcpDaemonStart,
     onTcpDaemonStop: handleTcpDaemonStop,
     onTcpDaemonStatus: handleTcpDaemonStatus,
-    onCommitOrbitWsUrl: handleCommitOrbitWsUrl,
-    onCommitOrbitAuthUrl: handleCommitOrbitAuthUrl,
-    onCommitOrbitRunnerName: handleCommitOrbitRunnerName,
-    onCommitOrbitAccessClientId: handleCommitOrbitAccessClientId,
-    onCommitOrbitAccessClientSecretRef: handleCommitOrbitAccessClientSecretRef,
-    onOrbitConnectTest: handleOrbitConnectTest,
-    onOrbitSignIn: handleOrbitSignIn,
-    onOrbitSignOut: handleOrbitSignOut,
-    onOrbitRunnerStart: handleOrbitRunnerStart,
-    onOrbitRunnerStop: handleOrbitRunnerStop,
-    onOrbitRunnerStatus: handleOrbitRunnerStatus,
     isMobilePlatform: mobilePlatform,
     mobileConnectBusy,
     mobileConnectStatusText,

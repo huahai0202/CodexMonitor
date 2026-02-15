@@ -30,7 +30,8 @@ const DEFAULT_REMOTE_PROVIDER: AppSettings["remoteBackendProvider"] = "tcp";
 type RemoteBackendTarget = AppSettings["remoteBackends"][number];
 
 function normalizeRemoteProvider(value: unknown): AppSettings["remoteBackendProvider"] {
-  return value === "orbit" ? "orbit" : "tcp";
+  void value;
+  return "tcp";
 }
 
 function normalizeRemoteToken(value: string | null | undefined): string | null {
@@ -51,12 +52,10 @@ function normalizeRemoteBackends(settings: AppSettings): {
   remoteBackendProvider: AppSettings["remoteBackendProvider"];
   remoteBackendHost: string;
   remoteBackendToken: string | null;
-  orbitWsUrl: string | null;
 } {
   const legacyProvider = normalizeRemoteProvider(settings.remoteBackendProvider);
   const legacyHost = normalizeRemoteHost(settings.remoteBackendHost);
   const legacyToken = normalizeRemoteToken(settings.remoteBackendToken);
-  const legacyOrbitWsUrl = settings.orbitWsUrl?.trim() ? settings.orbitWsUrl.trim() : null;
   const usedIds = new Set<string>();
 
   const normalized = (settings.remoteBackends ?? []).map((entry, index) => {
@@ -74,7 +73,6 @@ function normalizeRemoteBackends(settings: AppSettings): {
       provider: normalizeRemoteProvider(entry.provider),
       host: normalizeRemoteHost(entry.host),
       token: normalizeRemoteToken(entry.token),
-      orbitWsUrl: entry.orbitWsUrl?.trim() ? entry.orbitWsUrl.trim() : null,
       lastConnectedAtMs:
         typeof entry.lastConnectedAtMs === "number" && Number.isFinite(entry.lastConnectedAtMs)
           ? entry.lastConnectedAtMs
@@ -89,7 +87,6 @@ function normalizeRemoteBackends(settings: AppSettings): {
       provider: legacyProvider,
       host: legacyHost,
       token: legacyToken,
-      orbitWsUrl: legacyOrbitWsUrl,
       lastConnectedAtMs: null,
     };
     return {
@@ -98,7 +95,6 @@ function normalizeRemoteBackends(settings: AppSettings): {
       remoteBackendProvider: fallback.provider,
       remoteBackendHost: fallback.host,
       remoteBackendToken: fallback.token,
-      orbitWsUrl: fallback.orbitWsUrl,
     };
   }
 
@@ -113,7 +109,6 @@ function normalizeRemoteBackends(settings: AppSettings): {
     provider: legacyProvider,
     host: legacyHost,
     token: legacyToken,
-    orbitWsUrl: legacyOrbitWsUrl,
   };
   const remoteBackends = [...normalized];
   remoteBackends[activeIndex] = syncedActive;
@@ -123,7 +118,6 @@ function normalizeRemoteBackends(settings: AppSettings): {
     remoteBackendProvider: syncedActive.provider,
     remoteBackendHost: syncedActive.host,
     remoteBackendToken: syncedActive.token,
-    orbitWsUrl: syncedActive.orbitWsUrl,
   };
 }
 
@@ -136,7 +130,6 @@ function buildDefaultSettings(): AppSettings {
     provider: DEFAULT_REMOTE_PROVIDER,
     host: DEFAULT_REMOTE_BACKEND_HOST,
     token: null,
-    orbitWsUrl: null,
     lastConnectedAtMs: null,
   };
   return {
@@ -148,14 +141,7 @@ function buildDefaultSettings(): AppSettings {
     remoteBackendToken: null,
     remoteBackends: [defaultRemote],
     activeRemoteBackendId: defaultRemote.id,
-    orbitWsUrl: null,
-    orbitAuthUrl: null,
-    orbitRunnerName: null,
-    orbitAutoStartRunner: false,
     keepDaemonRunningAfterAppClose: false,
-    orbitUseAccess: false,
-    orbitAccessClientId: null,
-    orbitAccessClientSecretRef: null,
     defaultAccessMode: "current",
     reviewDeliveryMode: "inline",
     composerModelShortcut: isMac ? "cmd+shift+m" : "ctrl+shift+m",

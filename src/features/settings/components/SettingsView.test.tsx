@@ -48,18 +48,10 @@ const baseSettings: AppSettings = {
       provider: "tcp",
       host: "127.0.0.1:4732",
       token: null,
-      orbitWsUrl: null,
     },
   ],
   activeRemoteBackendId: "remote-default",
-  orbitWsUrl: null,
-  orbitAuthUrl: null,
-  orbitRunnerName: null,
-  orbitAutoStartRunner: false,
   keepDaemonRunningAfterAppClose: false,
-  orbitUseAccess: false,
-  orbitAccessClientId: null,
-  orbitAccessClientSecretRef: null,
   defaultAccessMode: "current",
   reviewDeliveryMode: "inline",
   composerModelShortcut: null,
@@ -789,60 +781,6 @@ describe("SettingsView Codex overrides", () => {
     });
   });
 
-  it("renders Orbit controls for Orbit provider even in local backend mode", async () => {
-    cleanup();
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{
-          ...baseSettings,
-          backendMode: "local",
-          remoteBackendProvider: "orbit",
-        }}
-        openAppIconById={{}}
-        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="server"
-      />,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("Orbit websocket URL")).toBeTruthy();
-      expect(screen.getByLabelText("Orbit auth URL")).toBeTruthy();
-      expect(screen.getByLabelText("Orbit runner name")).toBeTruthy();
-      expect(screen.getByLabelText("Orbit access client ID")).toBeTruthy();
-      expect(screen.getByLabelText("Orbit access client secret ref")).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Connect test" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Sign In" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Sign Out" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Start Runner" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Stop Runner" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Refresh Status" })).toBeTruthy();
-    });
-  });
-
   it("renders mobile daemon controls in local backend mode for TCP provider", async () => {
     cleanup();
     render(
@@ -939,7 +877,7 @@ describe("SettingsView Codex overrides", () => {
           appSettings={{
             ...baseSettings,
             backendMode: "local",
-            remoteBackendProvider: "orbit",
+            remoteBackendProvider: "tcp",
           }}
           openAppIconById={{}}
           onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
@@ -959,8 +897,7 @@ describe("SettingsView Codex overrides", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText("Connection type")).toBeTruthy();
-        expect(screen.getByLabelText("Orbit websocket URL")).toBeTruthy();
+        expect(screen.getByLabelText("Remote backend host")).toBeTruthy();
         expect(screen.getByLabelText("Remote backend token")).toBeTruthy();
         expect(screen.getByRole("button", { name: "Connect & test" })).toBeTruthy();
       });
@@ -968,11 +905,9 @@ describe("SettingsView Codex overrides", () => {
       expect(screen.queryByLabelText("Backend mode")).toBeNull();
       expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Detect Tailscale" })).toBeNull();
-      expect(screen.queryByRole("button", { name: "Connect test" })).toBeNull();
-      expect(screen.queryByLabelText("Remote backend host")).toBeNull();
-      expect(screen.queryByRole("button", { name: "Sign In" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Start Runner" })).toBeNull();
       expect(
-        screen.getByText(/use the orbit websocket url and token configured/i),
+        screen.getByText(/get the tailscale hostname and token from your desktop/i),
       ).toBeTruthy();
     } finally {
       if (originalPlatformDescriptor) {
@@ -1045,18 +980,16 @@ describe("SettingsView Codex overrides", () => {
           onToggleTransparency={vi.fn()}
           appSettings={{
             ...baseSettings,
-            remoteBackendProvider: "orbit",
+            remoteBackendProvider: "tcp",
             remoteBackendHost: "127.0.0.1:4732",
             remoteBackendToken: "token-a",
-            orbitWsUrl: "wss://orbit-a.example/ws",
             remoteBackends: [
               {
                 id: "remote-a",
                 name: "Home Mac",
-                provider: "orbit",
+                provider: "tcp",
                 host: "127.0.0.1:4732",
                 token: "token-a",
-                orbitWsUrl: "wss://orbit-a.example/ws",
               },
               {
                 id: "remote-b",
@@ -1064,7 +997,6 @@ describe("SettingsView Codex overrides", () => {
                 provider: "tcp",
                 host: "office-mac.tailnet.ts.net:4732",
                 token: "token-b",
-                orbitWsUrl: null,
               },
             ],
             activeRemoteBackendId: "remote-a",
@@ -1168,348 +1100,6 @@ describe("SettingsView Codex overrides", () => {
     }
   });
 
-  it("polls Orbit sign-in using deviceCode until authorized", async () => {
-    cleanup();
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    const startSpy = vi.fn().mockResolvedValueOnce({
-      deviceCode: "device-code-123",
-      userCode: "ABCD-1234",
-      verificationUri: "https://orbit.example/verify",
-      verificationUriComplete: null,
-      intervalSeconds: 1,
-      expiresInSeconds: 30,
-    });
-    const pollSpy = vi
-      .fn()
-      .mockResolvedValueOnce({
-        status: "pending",
-        token: null,
-        message: "Waiting for authorization.",
-        intervalSeconds: 1,
-      })
-      .mockResolvedValueOnce({
-        status: "authorized",
-        token: "orbit-token-1",
-        message: "Orbit sign in complete.",
-        intervalSeconds: null,
-      });
-    const orbitServiceClient: NonNullable<
-      ComponentProps<typeof SettingsView>["orbitServiceClient"]
-    > = {
-      orbitConnectTest: vi.fn().mockResolvedValue({
-        ok: true,
-        latencyMs: 12,
-        message: "Connected to Orbit relay.",
-      }),
-      orbitSignInStart: startSpy,
-      orbitSignInPoll: pollSpy,
-      orbitSignOut: vi.fn().mockResolvedValue({ success: true, message: null }),
-      orbitRunnerStart: vi.fn().mockResolvedValue({
-        state: "running",
-        pid: 123,
-        startedAtMs: Date.now(),
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-      orbitRunnerStop: vi.fn().mockResolvedValue({
-        state: "stopped",
-        pid: null,
-        startedAtMs: null,
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-      orbitRunnerStatus: vi.fn().mockResolvedValue({
-        state: "stopped",
-        pid: null,
-        startedAtMs: null,
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-    };
-    const rendered = render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{
-          ...baseSettings,
-          backendMode: "remote",
-          remoteBackendProvider: "orbit",
-        }}
-        openAppIconById={{}}
-        onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="server"
-        orbitServiceClient={orbitServiceClient}
-      />,
-    );
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
-    });
-    await waitFor(() => {
-      expect(pollSpy).toHaveBeenCalledTimes(1);
-    }, { timeout: 2500 });
-
-    rendered.rerender(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{
-          ...baseSettings,
-          backendMode: "remote",
-          remoteBackendProvider: "orbit",
-          theme: "dark",
-        }}
-        openAppIconById={{}}
-        onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="server"
-        orbitServiceClient={orbitServiceClient}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(startSpy).toHaveBeenCalledTimes(1);
-      expect(pollSpy).toHaveBeenCalledTimes(2);
-      expect(pollSpy).toHaveBeenCalledWith("device-code-123", "remote-default");
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ remoteBackendToken: "orbit-token-1", theme: "dark" }),
-      );
-      expect(screen.getByText(/Auth code:/).textContent ?? "").toContain("ABCD-1234");
-      expect(screen.getByText("Orbit sign in complete.")).toBeTruthy();
-    }, { timeout: 3500 });
-  });
-
-  it("syncs token state after Orbit sign-out", async () => {
-    cleanup();
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    const signOutSpy = vi.fn().mockResolvedValue({ success: true, message: null });
-    const orbitServiceClient: NonNullable<
-      ComponentProps<typeof SettingsView>["orbitServiceClient"]
-    > = {
-      orbitConnectTest: vi.fn().mockResolvedValue({
-        ok: true,
-        latencyMs: 12,
-        message: "Connected to Orbit relay.",
-      }),
-      orbitSignInStart: vi.fn(),
-      orbitSignInPoll: vi.fn(),
-      orbitSignOut: signOutSpy,
-      orbitRunnerStart: vi.fn().mockResolvedValue({
-        state: "running",
-        pid: 123,
-        startedAtMs: Date.now(),
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-      orbitRunnerStop: vi.fn().mockResolvedValue({
-        state: "stopped",
-        pid: null,
-        startedAtMs: null,
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-      orbitRunnerStatus: vi.fn().mockResolvedValue({
-        state: "stopped",
-        pid: null,
-        startedAtMs: null,
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-    };
-
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{
-          ...baseSettings,
-          backendMode: "remote",
-          remoteBackendProvider: "orbit",
-          remoteBackendToken: "token-to-clear",
-        }}
-        openAppIconById={{}}
-        onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="server"
-        orbitServiceClient={orbitServiceClient}
-      />,
-    );
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
-    });
-
-    await waitFor(() => {
-      expect(signOutSpy).toHaveBeenCalledWith("remote-default");
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ remoteBackendToken: null }),
-      );
-    });
-  });
-
-  it("retries Orbit token persistence after a failed save", async () => {
-    cleanup();
-    const onUpdateAppSettings = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("settings write failed"))
-      .mockResolvedValue(undefined);
-    const orbitServiceClient: NonNullable<
-      ComponentProps<typeof SettingsView>["orbitServiceClient"]
-    > = {
-      orbitConnectTest: vi.fn().mockResolvedValue({
-        ok: true,
-        latencyMs: 12,
-        message: "Connected to Orbit relay.",
-      }),
-      orbitSignInStart: vi.fn(),
-      orbitSignInPoll: vi.fn(),
-      orbitSignOut: vi.fn().mockResolvedValue({ success: true, message: null }),
-      orbitRunnerStart: vi.fn().mockResolvedValue({
-        state: "running",
-        pid: 123,
-        startedAtMs: Date.now(),
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-      orbitRunnerStop: vi.fn().mockResolvedValue({
-        state: "stopped",
-        pid: null,
-        startedAtMs: null,
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-      orbitRunnerStatus: vi.fn().mockResolvedValue({
-        state: "stopped",
-        pid: null,
-        startedAtMs: null,
-        lastError: null,
-        orbitUrl: "wss://orbit.example/ws",
-      }),
-    };
-
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{
-          ...baseSettings,
-          backendMode: "remote",
-          remoteBackendProvider: "orbit",
-          remoteBackendToken: "token-to-clear",
-        }}
-        openAppIconById={{}}
-        onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="server"
-        orbitServiceClient={orbitServiceClient}
-      />,
-    );
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
-    });
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
-      expect(screen.getByText("Sign Out failed: settings write failed")).toBeTruthy();
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
-    });
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledTimes(2);
-      expect(onUpdateAppSettings).toHaveBeenLastCalledWith(
-        expect.objectContaining({ remoteBackendToken: null }),
-      );
-    });
-  });
 });
 
 describe("SettingsView Codex defaults", () => {

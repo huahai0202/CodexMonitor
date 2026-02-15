@@ -187,81 +187,6 @@ pub(crate) struct LocalUsageSnapshot {
     pub(crate) top_models: Vec<LocalUsageModel>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct OrbitConnectTestResult {
-    pub(crate) ok: bool,
-    pub(crate) latency_ms: Option<u64>,
-    pub(crate) message: String,
-    #[serde(default)]
-    pub(crate) details: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct OrbitDeviceCodeStart {
-    pub(crate) device_code: String,
-    #[serde(default)]
-    pub(crate) user_code: Option<String>,
-    pub(crate) verification_uri: String,
-    #[serde(default)]
-    pub(crate) verification_uri_complete: Option<String>,
-    pub(crate) interval_seconds: u32,
-    pub(crate) expires_in_seconds: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum OrbitSignInStatus {
-    Pending,
-    Authorized,
-    Denied,
-    Expired,
-    Error,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct OrbitSignInPollResult {
-    pub(crate) status: OrbitSignInStatus,
-    #[serde(default)]
-    pub(crate) token: Option<String>,
-    #[serde(default)]
-    pub(crate) message: Option<String>,
-    #[serde(default)]
-    pub(crate) interval_seconds: Option<u32>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct OrbitSignOutResult {
-    pub(crate) success: bool,
-    #[serde(default)]
-    pub(crate) message: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum OrbitRunnerState {
-    Stopped,
-    Running,
-    Error,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct OrbitRunnerStatus {
-    pub(crate) state: OrbitRunnerState,
-    #[serde(default)]
-    pub(crate) pid: Option<u32>,
-    #[serde(default)]
-    pub(crate) started_at_ms: Option<i64>,
-    #[serde(default)]
-    pub(crate) last_error: Option<String>,
-    #[serde(default)]
-    pub(crate) orbit_url: Option<String>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum TcpDaemonState {
@@ -448,8 +373,6 @@ pub(crate) struct RemoteBackendTarget {
     pub(crate) host: String,
     #[serde(default)]
     pub(crate) token: Option<String>,
-    #[serde(default, rename = "orbitWsUrl")]
-    pub(crate) orbit_ws_url: Option<String>,
     #[serde(default, rename = "lastConnectedAtMs")]
     pub(crate) last_connected_at_ms: Option<i64>,
 }
@@ -472,22 +395,8 @@ pub(crate) struct AppSettings {
     pub(crate) remote_backends: Vec<RemoteBackendTarget>,
     #[serde(default, rename = "activeRemoteBackendId")]
     pub(crate) active_remote_backend_id: Option<String>,
-    #[serde(default, rename = "orbitWsUrl")]
-    pub(crate) orbit_ws_url: Option<String>,
-    #[serde(default, rename = "orbitAuthUrl")]
-    pub(crate) orbit_auth_url: Option<String>,
-    #[serde(default, rename = "orbitRunnerName")]
-    pub(crate) orbit_runner_name: Option<String>,
-    #[serde(default, rename = "orbitAutoStartRunner")]
-    pub(crate) orbit_auto_start_runner: bool,
     #[serde(default, rename = "keepDaemonRunningAfterAppClose")]
     pub(crate) keep_daemon_running_after_app_close: bool,
-    #[serde(default, rename = "orbitUseAccess")]
-    pub(crate) orbit_use_access: bool,
-    #[serde(default, rename = "orbitAccessClientId")]
-    pub(crate) orbit_access_client_id: Option<String>,
-    #[serde(default, rename = "orbitAccessClientSecretRef")]
-    pub(crate) orbit_access_client_secret_ref: Option<String>,
     #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
     pub(crate) default_access_mode: String,
     #[serde(
@@ -746,7 +655,6 @@ impl Default for BackendMode {
 #[serde(rename_all = "lowercase")]
 pub(crate) enum RemoteBackendProvider {
     Tcp,
-    Orbit,
 }
 
 impl Default for RemoteBackendProvider {
@@ -1203,14 +1111,7 @@ impl Default for AppSettings {
             remote_backend_token: None,
             remote_backends: default_remote_backends(),
             active_remote_backend_id: None,
-            orbit_ws_url: None,
-            orbit_auth_url: None,
-            orbit_runner_name: None,
-            orbit_auto_start_runner: false,
             keep_daemon_running_after_app_close: false,
-            orbit_use_access: false,
-            orbit_access_client_id: None,
-            orbit_access_client_secret_ref: None,
             default_access_mode: "current".to_string(),
             review_delivery_mode: default_review_delivery_mode(),
             composer_model_shortcut: default_composer_model_shortcut(),
@@ -1306,14 +1207,7 @@ mod tests {
         assert!(settings.remote_backend_token.is_none());
         assert!(settings.remote_backends.is_empty());
         assert!(settings.active_remote_backend_id.is_none());
-        assert!(settings.orbit_ws_url.is_none());
-        assert!(settings.orbit_auth_url.is_none());
-        assert!(settings.orbit_runner_name.is_none());
-        assert!(!settings.orbit_auto_start_runner);
         assert!(!settings.keep_daemon_running_after_app_close);
-        assert!(!settings.orbit_use_access);
-        assert!(settings.orbit_access_client_id.is_none());
-        assert!(settings.orbit_access_client_secret_ref.is_none());
         assert_eq!(settings.default_access_mode, "current");
         assert_eq!(settings.review_delivery_mode, "inline");
         let expected_primary = if cfg!(target_os = "macos") {
