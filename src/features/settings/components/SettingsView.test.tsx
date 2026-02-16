@@ -11,7 +11,7 @@ import {
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
-import { getExperimentalFeatureList, getModelList } from "@services/tauri";
+import { getExperimentalFeatureList, getModelList, listWorkspaces } from "@services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
@@ -28,11 +28,14 @@ vi.mock("@services/tauri", async () => {
     ...actual,
     getModelList: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
+    listWorkspaces: vi.fn(),
   };
 });
 
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
+const listWorkspacesMock = vi.mocked(listWorkspaces);
+listWorkspacesMock.mockResolvedValue([]);
 
 const baseSettings: AppSettings = {
   codexBin: null,
@@ -1051,12 +1054,50 @@ describe("SettingsView Codex overrides", () => {
 
       onUpdateAppSettings.mockClear();
       fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
+      expect(screen.getByRole("dialog", { name: "Add remote" })).toBeTruthy();
+      expect(onUpdateAppSettings).toHaveBeenCalledTimes(0);
+
+      fireEvent.click(screen.getByRole("button", { name: "Close add remote modal" }));
+      expect(screen.queryByRole("dialog", { name: "Add remote" })).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
+      fireEvent.change(screen.getByLabelText("New remote name"), {
+        target: { value: "Travel Mac" },
+      });
+      fireEvent.change(screen.getByLabelText("New remote host"), {
+        target: { value: "travel-mac.tailnet.ts.net:4732" },
+      });
+      fireEvent.change(screen.getByLabelText("New remote token"), {
+        target: { value: "token-travel" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Connect & add" }));
 
       await waitFor(() => {
-        expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
-        const nextSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
-        expect(nextSettings.remoteBackends).toHaveLength(3);
-        expect(nextSettings.activeRemoteBackendId).toBeTruthy();
+        expect(onUpdateAppSettings).toHaveBeenCalledTimes(2);
+      });
+      const trialSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
+      const connectedSettings = onUpdateAppSettings.mock.calls[1]?.[0] as AppSettings;
+      expect(trialSettings.remoteBackends).toHaveLength(3);
+      expect(trialSettings.activeRemoteBackendId).toBeTruthy();
+      expect(trialSettings.remoteBackendHost).toBe("travel-mac.tailnet.ts.net:4732");
+      expect(trialSettings.remoteBackendToken).toBe("token-travel");
+      expect(connectedSettings.remoteBackends).toHaveLength(3);
+      const connectedEntry = connectedSettings.remoteBackends.find(
+        (entry) => entry.id === connectedSettings.activeRemoteBackendId,
+      );
+      expect(connectedEntry?.lastConnectedAtMs).toEqual(expect.any(Number));
+      expect(screen.queryByRole("dialog", { name: "Add remote" })).toBeNull();
+      expect(listWorkspacesMock).toHaveBeenCalled();
+
+      onUpdateAppSettings.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
+      fireEvent.change(screen.getByLabelText("New remote token"), {
+        target: { value: "" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Connect & add" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Remote backend token is required.")).toBeTruthy();
       });
 
       onUpdateAppSettings.mockClear();

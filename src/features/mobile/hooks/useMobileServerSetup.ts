@@ -26,6 +26,40 @@ function defaultMobileSetupMessage(): string {
   return "Enter your desktop Tailscale host and token, then run Connect & test.";
 }
 
+function markActiveRemoteBackendConnected(settings: AppSettings, connectedAtMs: number): AppSettings {
+  const existingBackends: AppSettings["remoteBackends"] =
+    settings.remoteBackends.length > 0
+      ? [...settings.remoteBackends]
+      : [
+          {
+            id: settings.activeRemoteBackendId ?? "remote-default",
+            name: "Primary remote",
+            provider: "tcp" as const,
+            host: settings.remoteBackendHost,
+            token: settings.remoteBackendToken,
+            lastConnectedAtMs: null,
+          },
+        ];
+  const activeIndexById =
+    settings.activeRemoteBackendId == null
+      ? -1
+      : existingBackends.findIndex((entry) => entry.id === settings.activeRemoteBackendId);
+  const activeIndex = activeIndexById >= 0 ? activeIndexById : 0;
+  const active = existingBackends[activeIndex];
+  existingBackends[activeIndex] = {
+    ...active,
+    provider: "tcp",
+    host: settings.remoteBackendHost,
+    token: settings.remoteBackendToken,
+    lastConnectedAtMs: connectedAtMs,
+  };
+  return {
+    ...settings,
+    remoteBackends: existingBackends,
+    activeRemoteBackendId: existingBackends[activeIndex]?.id ?? settings.activeRemoteBackendId,
+  };
+}
+
 export function useMobileServerSetup({
   appSettings,
   appSettingsLoading,
@@ -41,6 +75,7 @@ export function useMobileServerSetup({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState(false);
   const [mobileServerReady, setMobileServerReady] = useState(!isMobileRuntime);
+  const [setupWizardDismissed, setSetupWizardDismissed] = useState(false);
 
   useEffect(() => {
     if (!isMobileRuntime) {
@@ -105,17 +140,21 @@ export function useMobileServerSetup({
       }
 
       setBusy(true);
+      setSetupWizardDismissed(false);
       setStatusError(false);
       setStatusMessage(null);
       try {
-        await queueSaveSettings({
+        const saved = await queueSaveSettings({
           ...appSettings,
           backendMode: "remote",
           remoteBackendProvider: "tcp",
           remoteBackendHost: nextHost,
           remoteBackendToken: nextToken,
         });
-        await runConnectivityCheck({ announceSuccess: true });
+        const connected = await runConnectivityCheck({ announceSuccess: true });
+        if (connected) {
+          await queueSaveSettings(markActiveRemoteBackendConnected(saved, Date.now()));
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unable to save remote backend settings.";
@@ -179,6 +218,7 @@ export function useMobileServerSetup({
     setStatusError(false);
     setStatusMessage(null);
     setMobileServerReady(true);
+    setSetupWizardDismissed(false);
     try {
       await refreshWorkspaces();
     } catch {
@@ -188,7 +228,8 @@ export function useMobileServerSetup({
 
   return {
     isMobileRuntime,
-    showMobileSetupWizard: isMobileRuntime && !appSettingsLoading && !mobileServerReady,
+    showMobileSetupWizard:
+      isMobileRuntime && !appSettingsLoading && !mobileServerReady && !setupWizardDismissed,
     mobileSetupWizardProps: {
       remoteHostDraft,
       remoteTokenDraft,
@@ -196,6 +237,9 @@ export function useMobileServerSetup({
       checking,
       statusMessage,
       statusError,
+      onClose: () => {
+        setSetupWizardDismissed(true);
+      },
       onRemoteHostChange: setRemoteHostDraft,
       onRemoteTokenChange: setRemoteTokenDraft,
       onConnectTest,

@@ -23,6 +23,12 @@ type UseSettingsServerSectionArgs = {
   onMobileConnectSuccess?: () => Promise<void> | void;
 };
 
+export type AddRemoteBackendDraft = {
+  name: string;
+  host: string;
+  token: string;
+};
+
 export type SettingsServerSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
@@ -39,6 +45,7 @@ export type SettingsServerSectionProps = {
   remoteNameDraft: string;
   remoteHostDraft: string;
   remoteTokenDraft: string;
+  nextRemoteNameSuggestion: string;
   tailscaleStatus: TailscaleStatus | null;
   tailscaleStatusBusy: boolean;
   tailscaleStatusError: string | null;
@@ -54,7 +61,7 @@ export type SettingsServerSectionProps = {
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
   onSelectRemoteBackend: (id: string) => Promise<void>;
-  onAddRemoteBackend: () => Promise<void>;
+  onAddRemoteBackend: (draft: AddRemoteBackendDraft) => Promise<void>;
   onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
   onDeleteRemoteBackend: (id: string) => Promise<void>;
   onRefreshTailscaleStatus: () => void;
@@ -333,20 +340,90 @@ export const useSettingsServerSection = ({
     setRemoteStatus(`Active remote set to "${selected.name}".`);
   };
 
-  const handleAddRemoteBackend = async () => {
+  const handleAddRemoteBackend = async (draft: AddRemoteBackendDraft) => {
     const latestSettings = latestSettingsRef.current;
     const existingBackends = getConfiguredRemoteBackends(latestSettings);
+    const nextName = draft.name.trim();
+    if (!nextName) {
+      const message = "Name is required.";
+      setRemoteStatus(message, true);
+      throw new Error(message);
+    }
+    const duplicate = existingBackends.some(
+      (entry) => entry.name.trim().toLowerCase() === nextName.toLowerCase(),
+    );
+    if (duplicate) {
+      const message = `A remote named "${nextName}" already exists.`;
+      setRemoteStatus(message, true);
+      throw new Error(message);
+    }
+    const nextHost = draft.host.trim();
+    const hostError = validateRemoteHost(nextHost);
+    if (hostError) {
+      setRemoteStatus(hostError, true);
+      throw new Error(hostError);
+    }
+    const nextToken = draft.token.trim() ? draft.token.trim() : null;
+    if (!nextToken) {
+      const message = "Remote backend token is required.";
+      setRemoteStatus(message, true);
+      throw new Error(message);
+    }
+
     const nextId = createRemoteBackendId();
     const nextRemote: RemoteBackendTarget = {
       id: nextId,
-      name: buildNextRemoteName(existingBackends),
+      name: nextName,
       provider: "tcp",
-      host: DEFAULT_REMOTE_HOST,
-      token: null,
+      host: nextHost,
+      token: nextToken,
       lastConnectedAtMs: null,
     };
-    await persistRemoteBackends([...existingBackends, nextRemote], nextId);
-    setRemoteStatus(`Added "${nextRemote.name}".`);
+
+    const previousSettings = latestSettings;
+    const candidateBackends = [...existingBackends, nextRemote];
+    const candidateSettings = buildSettingsFromRemoteBackends(
+      previousSettings,
+      candidateBackends,
+      nextId,
+    );
+
+    let candidatePersisted = false;
+    try {
+      await onUpdateAppSettings(candidateSettings);
+      latestSettingsRef.current = candidateSettings;
+      candidatePersisted = true;
+
+      const workspaces = await listWorkspaces();
+      const workspaceCount = workspaces.length;
+      const workspaceWord = workspaceCount === 1 ? "workspace" : "workspaces";
+      const connectedBackends = candidateBackends.map((entry) =>
+        entry.id === nextId ? { ...entry, lastConnectedAtMs: Date.now() } : entry,
+      );
+      const connectedSettings = buildSettingsFromRemoteBackends(
+        candidateSettings,
+        connectedBackends,
+        nextId,
+      );
+      await onUpdateAppSettings(connectedSettings);
+      latestSettingsRef.current = connectedSettings;
+      setRemoteStatus(
+        `Added "${nextName}" and connected. ${workspaceCount} ${workspaceWord} reachable on the remote backend.`,
+      );
+      await onMobileConnectSuccess?.();
+    } catch (error) {
+      if (candidatePersisted) {
+        try {
+          await onUpdateAppSettings(previousSettings);
+          latestSettingsRef.current = previousSettings;
+        } catch {
+          // Keep the original connection error surfaced below.
+        }
+      }
+      const message = formatErrorMessage(error, "Unable to connect to the new remote backend.");
+      setRemoteStatus(message, true);
+      throw new Error(message);
+    }
   };
 
   const handleSetRemoteNameDraft: Dispatch<SetStateAction<string>> = (value) => {
@@ -577,6 +654,7 @@ export const useSettingsServerSection = ({
     remoteNameDraft,
     remoteHostDraft,
     remoteTokenDraft,
+    nextRemoteNameSuggestion: buildNextRemoteName(getConfiguredRemoteBackends(appSettings)),
     tailscaleStatus,
     tailscaleStatusBusy,
     tailscaleStatusError,

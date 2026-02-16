@@ -1,4 +1,5 @@
 import "../../../styles/mobile-setup-wizard.css";
+import X from "lucide-react/dist/esm/icons/x";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 export type MobileServerSetupWizardProps = {
@@ -8,6 +9,7 @@ export type MobileServerSetupWizardProps = {
   checking: boolean;
   statusMessage: string | null;
   statusError: boolean;
+  onClose: () => void;
   onRemoteHostChange: (value: string) => void;
   onRemoteTokenChange: (value: string) => void;
   onConnectTest: () => void;
@@ -20,6 +22,7 @@ export function MobileServerSetupWizard({
   checking,
   statusMessage,
   statusError,
+  onClose,
   onRemoteHostChange,
   onRemoteTokenChange,
   onConnectTest,
@@ -28,9 +31,18 @@ export function MobileServerSetupWizard({
     <ModalShell
       className="mobile-setup-wizard-overlay"
       cardClassName="mobile-setup-wizard-card"
+      onBackdropClick={onClose}
       ariaLabel="Mobile server setup"
     >
       <div className="mobile-setup-wizard-header">
+        <button
+          type="button"
+          className="ghost icon-button mobile-setup-wizard-close"
+          onClick={onClose}
+          aria-label="Close mobile setup"
+        >
+          <X aria-hidden />
+        </button>
         <div className="mobile-setup-wizard-kicker">Mobile Setup Required</div>
         <h2 className="mobile-setup-wizard-title">Connect to your desktop backend</h2>
         <p className="mobile-setup-wizard-subtitle">

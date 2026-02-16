@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import X from "lucide-react/dist/esm/icons/x";
 import type {
   AppSettings,
   TailscaleDaemonCommandPreview,
@@ -7,6 +8,12 @@ import type {
   TcpDaemonStatus,
 } from "@/types";
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
+
+type AddRemoteBackendDraft = {
+  name: string;
+  host: string;
+  token: string;
+};
 
 type SettingsServerSectionProps = {
   appSettings: AppSettings;
@@ -24,6 +31,7 @@ type SettingsServerSectionProps = {
   remoteNameDraft: string;
   remoteHostDraft: string;
   remoteTokenDraft: string;
+  nextRemoteNameSuggestion: string;
   tailscaleStatus: TailscaleStatus | null;
   tailscaleStatusBusy: boolean;
   tailscaleStatusError: string | null;
@@ -39,7 +47,7 @@ type SettingsServerSectionProps = {
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
   onSelectRemoteBackend: (id: string) => Promise<void>;
-  onAddRemoteBackend: () => Promise<void>;
+  onAddRemoteBackend: (draft: AddRemoteBackendDraft) => Promise<void>;
   onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
   onDeleteRemoteBackend: (id: string) => Promise<void>;
   onRefreshTailscaleStatus: () => void;
@@ -67,6 +75,7 @@ export function SettingsServerSection({
   remoteNameDraft,
   remoteHostDraft,
   remoteTokenDraft,
+  nextRemoteNameSuggestion,
   tailscaleStatus,
   tailscaleStatusBusy,
   tailscaleStatusError,
@@ -96,6 +105,12 @@ export function SettingsServerSection({
   const [pendingDeleteRemoteId, setPendingDeleteRemoteId] = useState<string | null>(
     null,
   );
+  const [addRemoteOpen, setAddRemoteOpen] = useState(false);
+  const [addRemoteBusy, setAddRemoteBusy] = useState(false);
+  const [addRemoteError, setAddRemoteError] = useState<string | null>(null);
+  const [addRemoteNameDraft, setAddRemoteNameDraft] = useState("");
+  const [addRemoteHostDraft, setAddRemoteHostDraft] = useState("");
+  const [addRemoteTokenDraft, setAddRemoteTokenDraft] = useState("");
   const isMobileSimplified = isMobilePlatform;
   const pendingDeleteRemote = useMemo(
     () =>
@@ -118,6 +133,44 @@ export function SettingsServerSection({
     }
     return `Mobile daemon is stopped${tcpDaemonStatus.listenAddr ? ` (${tcpDaemonStatus.listenAddr})` : ""}.`;
   })();
+
+  const openAddRemoteModal = () => {
+    setAddRemoteError(null);
+    setAddRemoteNameDraft(nextRemoteNameSuggestion);
+    setAddRemoteHostDraft(remoteHostDraft);
+    setAddRemoteTokenDraft("");
+    setAddRemoteOpen(true);
+  };
+
+  const closeAddRemoteModal = () => {
+    if (addRemoteBusy) {
+      return;
+    }
+    setAddRemoteOpen(false);
+    setAddRemoteError(null);
+  };
+
+  const handleAddRemoteConfirm = () => {
+    void (async () => {
+      if (addRemoteBusy) {
+        return;
+      }
+      setAddRemoteBusy(true);
+      setAddRemoteError(null);
+      try {
+        await onAddRemoteBackend({
+          name: addRemoteNameDraft,
+          host: addRemoteHostDraft,
+          token: addRemoteTokenDraft,
+        });
+        setAddRemoteOpen(false);
+      } catch (error) {
+        setAddRemoteError(error instanceof Error ? error.message : "Unable to add remote.");
+      } finally {
+        setAddRemoteBusy(false);
+      }
+    })();
+  };
 
   return (
     <section className="settings-section">
@@ -234,9 +287,7 @@ export function SettingsServerSection({
                 <button
                   type="button"
                   className="button settings-button-compact"
-                  onClick={() => {
-                    void onAddRemoteBackend();
-                  }}
+                  onClick={openAddRemoteModal}
                 >
                   Add remote
                 </button>
@@ -499,6 +550,86 @@ export function SettingsServerSection({
           ? "Use your own infrastructure only. On iOS, get the Tailscale hostname and token from your desktop CodexMonitor setup."
           : "Mobile access should stay scoped to your own infrastructure (tailnet). CodexMonitor does not provide hosted backend services."}
       </div>
+      {addRemoteOpen && (
+        <ModalShell
+          className="settings-add-remote-overlay"
+          cardClassName="settings-add-remote-card"
+          onBackdropClick={closeAddRemoteModal}
+          ariaLabel="Add remote"
+        >
+          <div className="settings-add-remote-header">
+            <div className="settings-add-remote-title">Add remote</div>
+            <button
+              type="button"
+              className="ghost icon-button settings-add-remote-close"
+              onClick={closeAddRemoteModal}
+              aria-label="Close add remote modal"
+              disabled={addRemoteBusy}
+            >
+              <X aria-hidden />
+            </button>
+          </div>
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="settings-add-remote-name">
+              New remote name
+            </label>
+            <input
+              id="settings-add-remote-name"
+              className="settings-input settings-input--compact"
+              value={addRemoteNameDraft}
+              onChange={(event) => setAddRemoteNameDraft(event.target.value)}
+              disabled={addRemoteBusy}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="settings-add-remote-host">
+              New remote host
+            </label>
+            <input
+              id="settings-add-remote-host"
+              className="settings-input settings-input--compact"
+              value={addRemoteHostDraft}
+              placeholder="macbook.your-tailnet.ts.net:4732"
+              onChange={(event) => setAddRemoteHostDraft(event.target.value)}
+              disabled={addRemoteBusy}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="settings-add-remote-token">
+              New remote token
+            </label>
+            <input
+              id="settings-add-remote-token"
+              type="password"
+              className="settings-input settings-input--compact"
+              value={addRemoteTokenDraft}
+              placeholder="Token"
+              onChange={(event) => setAddRemoteTokenDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleAddRemoteConfirm();
+                }
+              }}
+              disabled={addRemoteBusy}
+            />
+          </div>
+          {addRemoteError && <div className="settings-help settings-help-error">{addRemoteError}</div>}
+          <div className="settings-add-remote-actions">
+            <button type="button" className="ghost" onClick={closeAddRemoteModal} disabled={addRemoteBusy}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={handleAddRemoteConfirm}
+              disabled={addRemoteBusy}
+            >
+              {addRemoteBusy ? "Connecting..." : "Connect & add"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
       {pendingDeleteRemote && (
         <ModalShell
           className="settings-delete-remote-overlay"
