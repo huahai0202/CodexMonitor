@@ -86,6 +86,7 @@ import { useComposerInsert } from "@app/hooks/useComposerInsert";
 import { useRenameThreadPrompt } from "@threads/hooks/useRenameThreadPrompt";
 import { useWorktreePrompt } from "@/features/workspaces/hooks/useWorktreePrompt";
 import { useClonePrompt } from "@/features/workspaces/hooks/useClonePrompt";
+import { useWorkspaceFromUrlPrompt } from "@/features/workspaces/hooks/useWorkspaceFromUrlPrompt";
 import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
 import { useWorkspaceSelection } from "@/features/workspaces/hooks/useWorkspaceSelection";
 import { useGitHubPanelController } from "@app/hooks/useGitHubPanelController";
@@ -211,6 +212,7 @@ function MainApp() {
     setActiveWorkspaceId,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
     addCloneAgent,
     addWorktreeAgent,
@@ -1176,6 +1178,23 @@ function MainApp() {
     },
   });
 
+
+  const {
+    workspaceFromUrlPrompt,
+    openWorkspaceFromUrlPrompt,
+    closeWorkspaceFromUrlPrompt,
+    chooseWorkspaceFromUrlDestinationPath,
+    submitWorkspaceFromUrlPrompt,
+    updateWorkspaceFromUrlUrl,
+    updateWorkspaceFromUrlTargetFolderName,
+    clearWorkspaceFromUrlDestinationPath,
+    canSubmitWorkspaceFromUrlPrompt,
+  } = useWorkspaceFromUrlPrompt({
+    onSubmit: async (url, destinationPath, targetFolderName) => {
+      await handleAddWorkspaceFromGitUrl(url, destinationPath, targetFolderName);
+    },
+  });
+
   const showHome = !activeWorkspace;
   const {
     latestAgentRuns,
@@ -1611,6 +1630,7 @@ function MainApp() {
   const {
     handleAddWorkspace,
     handleAddWorkspacesFromPaths,
+    handleAddWorkspaceFromGitUrl,
     handleAddAgent,
     handleAddWorktreeAgent,
     handleAddCloneAgent,
@@ -1618,6 +1638,7 @@ function MainApp() {
     isCompact,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
     setActiveThreadId,
     setActiveTab,
@@ -1844,6 +1865,9 @@ function MainApp() {
     onAddWorkspace: () => {
       void handleAddWorkspace();
     },
+    onAddWorkspaceFromUrl: () => {
+      openWorkspaceFromUrlPrompt();
+    },
     onAddAgent: (workspace) => {
       void handleAddAgent(workspace);
     },
@@ -1945,6 +1969,7 @@ function MainApp() {
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
+    onAddWorkspaceFromUrl: openWorkspaceFromUrlPrompt,
     onSelectHome: handleSidebarSelectHome,
     onSelectWorkspace: handleSidebarSelectWorkspace,
     onConnectWorkspace: handleSidebarConnectWorkspace,
@@ -2520,6 +2545,14 @@ function MainApp() {
         onClonePromptClearCopiesFolder={clearCloneCopiesFolder}
         onClonePromptCancel={cancelClonePrompt}
         onClonePromptConfirm={confirmClonePrompt}
+        workspaceFromUrlPrompt={workspaceFromUrlPrompt}
+        workspaceFromUrlCanSubmit={canSubmitWorkspaceFromUrlPrompt}
+        onWorkspaceFromUrlPromptUrlChange={updateWorkspaceFromUrlUrl}
+        onWorkspaceFromUrlPromptTargetFolderNameChange={updateWorkspaceFromUrlTargetFolderName}
+        onWorkspaceFromUrlPromptChooseDestinationPath={chooseWorkspaceFromUrlDestinationPath}
+        onWorkspaceFromUrlPromptClearDestinationPath={clearWorkspaceFromUrlDestinationPath}
+        onWorkspaceFromUrlPromptCancel={closeWorkspaceFromUrlPrompt}
+        onWorkspaceFromUrlPromptConfirm={submitWorkspaceFromUrlPrompt}
         branchSwitcher={branchSwitcher}
         branches={branches}
         workspaces={workspaces}

@@ -247,6 +247,20 @@ export async function addWorkspace(
   return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
 }
 
+export async function addWorkspaceFromGitUrl(
+  url: string,
+  destination_path: string,
+  target_folder_name: string | null,
+  codex_bin: string | null,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("add_workspace_from_git_url", {
+    url,
+    destination_path,
+    target_folder_name,
+    codex_bin,
+  });
+}
+
 export async function isWorkspacePathDir(path: string): Promise<boolean> {
   return invoke<boolean>("is_workspace_path_dir", { path });
 }

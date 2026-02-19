@@ -23,6 +23,7 @@ type UsageWorkspaceOption = {
 type HomeProps = {
   onOpenSettings: () => void;
   onAddWorkspace: () => void;
+  onAddWorkspaceFromUrl?: () => void;
   latestAgentRuns: LatestAgentRun[];
   isLoadingLatestAgents: boolean;
   localUsageSnapshot: LocalUsageSnapshot | null;
@@ -40,6 +41,7 @@ type HomeProps = {
 export function Home({
   onOpenSettings,
   onAddWorkspace,
+  onAddWorkspaceFromUrl,
   latestAgentRuns,
   isLoadingLatestAgents,
   localUsageSnapshot,
@@ -247,6 +249,16 @@ export function Home({
             +
           </span>
           Add Workspaces
+        </button>
+        <button
+          className="home-button secondary"
+          onClick={onAddWorkspaceFromUrl ?? onAddWorkspace}
+          data-tauri-drag-region="false"
+        >
+          <span className="home-icon" aria-hidden>
+            ⤓
+          </span>
+          Add Workspace from URL
         </button>
         <button
           className="home-button secondary"
