@@ -309,7 +309,12 @@ where
     }
 
     let clone_path_string = clone_path.to_string_lossy().to_string();
-    git_core::run_git_command(&destination_parent, &["clone", &url, &clone_path_string]).await?;
+    if let Err(error) =
+        git_core::run_git_command(&destination_parent, &["clone", &url, &clone_path_string]).await
+    {
+        let _ = tokio::fs::remove_dir_all(&clone_path).await;
+        return Err(error);
+    }
 
     let workspace_name = clone_path
         .file_name()

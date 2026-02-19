@@ -133,6 +133,7 @@ export function useWorkspaceActions({
         alert(`Failed to import workspace from URL.
 
 ${message}`);
+        throw error;
       }
     },
     [addWorkspaceFromGitUrl, handleWorkspaceAdded, onDebug],
