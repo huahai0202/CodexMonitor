@@ -244,7 +244,7 @@ fn validate_target_folder_name(value: &str) -> Result<String, String> {
 
     if trimmed.contains('/') || trimmed.contains('\\') {
         return Err(
-            "Target folder name must be a single relative folder name without separators."
+            "Target folder name must be a single relative folder name without separators or traversal."
                 .to_string(),
         );
     }
@@ -253,7 +253,7 @@ fn validate_target_folder_name(value: &str) -> Result<String, String> {
     match (path.components().next(), path.components().nth(1)) {
         (Some(Component::Normal(_)), None) => Ok(trimmed.to_string()),
         _ => Err(
-            "Target folder name must be a single relative folder name without traversal."
+            "Target folder name must be a single relative folder name without separators or traversal."
                 .to_string(),
         ),
     }
@@ -745,6 +745,6 @@ mod tests {
     #[test]
     fn rejects_target_folder_name_with_traversal() {
         let err = validate_target_folder_name("../project").expect_err("name should be rejected");
-        assert!(err.contains("without traversal"));
+        assert!(err.contains("without separators or traversal"));
     }
 }
