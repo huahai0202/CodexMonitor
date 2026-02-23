@@ -330,6 +330,7 @@ export type LayoutNodesOptions = {
   onUnstageGitFile: (path: string) => Promise<void>;
   onRevertGitFile: (path: string) => Promise<void>;
   onRevertAllGitChanges: () => Promise<void>;
+  onReviewUncommittedChanges: () => Promise<void>;
   diffSource: GitDiffSource;
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
@@ -392,6 +393,7 @@ export type LayoutNodesOptions = {
   isProcessing: boolean;
   steerAvailable: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
+  composerFollowUpHintEnabled: boolean;
   reviewPrompt: ReviewPromptState;
   onReviewPromptClose: () => void;
   onReviewPromptShowPreset: () => void;
