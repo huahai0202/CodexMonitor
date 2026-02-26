@@ -1,9 +1,5 @@
 import type { AppSettings, ModelOption } from "@/types";
-import {
-  SettingsSection,
-  SettingsToggleRow,
-  SettingsToggleSwitch,
-} from "@/features/design-system/components/settings/SettingsPrimitives";
+import { useI18n } from "@/i18n/useI18n";
 
 type SettingsGitSectionProps = {
   appSettings: AppSettings;
@@ -28,44 +24,61 @@ export function SettingsGitSection({
   onSaveCommitMessagePrompt,
   onResetCommitMessagePrompt,
 }: SettingsGitSectionProps) {
+  const { t } = useI18n();
   return (
-    <SettingsSection
-      title="Git"
-      subtitle="Manage how diffs are loaded in the Git sidebar."
-    >
-      <SettingsToggleRow
-        title="Preload git diffs"
-        subtitle="Make viewing git diff faster."
-      >
-        <SettingsToggleSwitch
-          pressed={appSettings.preloadGitDiffs}
+    <section className="settings-section">
+      <div className="settings-section-title">Git</div>
+      <div className="settings-section-subtitle">
+        {t("settings.git.sectionSubtitle")}
+      </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">{t("settings.git.preloadDiffs.title")}</div>
+          <div className="settings-toggle-subtitle">
+            {t("settings.git.preloadDiffs.subtitle")}
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.preloadGitDiffs ? "on" : ""}`}
           onClick={() =>
             void onUpdateAppSettings({
               ...appSettings,
               preloadGitDiffs: !appSettings.preloadGitDiffs,
             })
           }
-        />
-      </SettingsToggleRow>
-      <SettingsToggleRow
-        title="Ignore whitespace changes"
-        subtitle="Hides whitespace-only changes in local and commit diffs."
-      >
-        <SettingsToggleSwitch
-          pressed={appSettings.gitDiffIgnoreWhitespaceChanges}
+          aria-pressed={appSettings.preloadGitDiffs}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">{t("settings.git.ignoreWhitespace.title")}</div>
+          <div className="settings-toggle-subtitle">
+            {t("settings.git.ignoreWhitespace.subtitle")}
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.gitDiffIgnoreWhitespaceChanges ? "on" : ""}`}
           onClick={() =>
             void onUpdateAppSettings({
               ...appSettings,
               gitDiffIgnoreWhitespaceChanges: !appSettings.gitDiffIgnoreWhitespaceChanges,
             })
           }
-        />
-      </SettingsToggleRow>
+          aria-pressed={appSettings.gitDiffIgnoreWhitespaceChanges}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
       <div className="settings-field">
-        <div className="settings-field-label">Commit message prompt</div>
+        <div className="settings-field-label">{t("settings.git.commitPrompt.label")}</div>
         <div className="settings-help">
-          Used when generating commit messages. Include <code>{"{diff}"}</code> to insert the
-          git diff.
+          {t("settings.git.commitPrompt.help.before")}
+          <code>{"{diff}"}</code>
+          {t("settings.git.commitPrompt.help.after")}
         </div>
         <textarea
           className="settings-agents-textarea"
@@ -83,7 +96,7 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            Reset
+            {t("settings.git.commitPrompt.reset")}
           </button>
           <button
             type="button"
@@ -93,18 +106,19 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            {commitMessagePromptSaving ? "Saving..." : "Save"}
+            {commitMessagePromptSaving
+              ? t("settings.git.commitPrompt.saving")
+              : t("settings.git.commitPrompt.save")}
           </button>
         </div>
       </div>
       {models.length > 0 && (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="commit-message-model-select">
-            Commit message model
+            {t("settings.git.commitModel.label")}
           </label>
           <div className="settings-help">
-            The model used when generating commit messages. Leave on default to use the
-            workspace model.
+            {t("settings.git.commitModel.help")}
           </div>
           <select
             id="commit-message-model-select"
@@ -118,7 +132,7 @@ export function SettingsGitSection({
               });
             }}
           >
-            <option value="">Default</option>
+            <option value="">{t("settings.git.commitModel.default")}</option>
             {models.map((model) => (
               <option key={model.id} value={model.model}>
                 {model.displayName?.trim() || model.model}
@@ -127,6 +141,6 @@ export function SettingsGitSection({
           </select>
         </div>
       )}
-    </SettingsSection>
+    </section>
   );
 }
